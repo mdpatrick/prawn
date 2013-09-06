@@ -173,7 +173,7 @@ module Prawn
       # Returns maximum width that can contain cells in the set.
       #
       def max_width
-        aggregate_cell_values(:column, :max_width_ignoring_span, :min)
+        aggregate_cell_values(:column, :max_width_ignoring_span, :max)
       end
 
       # Returns the total height of all rows in the selected set.
@@ -229,9 +229,45 @@ module Prawn
       #
       def aggregate_cell_values(row_or_column, meth, aggregate)
         values = {}
+
+        #calculate values for all cells that do not span accross multiple cells
+        #this ensures that we don't have a problem if the first line includes
+        #a cell that spans across multiple cells
         each do |cell|
-          index = cell.send(row_or_column)
-          values[index] = [values[index], cell.send(meth)].compact.send(aggregate)
+          #don't take spanned cells
+          if cell.colspan == 1 and cell.class != Prawn::Table::Cell::SpanDummy
+            index = cell.send(row_or_column)
+            values[index] = [values[index], cell.send(meth)].compact.send(aggregate)
+          end
+        end
+
+        each do |cell|
+          index = cell.send(row_or_column)          
+          if cell.colspan > 1
+            #calculate current (old) return value before we do anything
+            old_sum = 0
+            cell.colspan.times { |i|
+              old_sum += values[index+i] unless values[index+i].nil?
+            }
+            
+            #calculate future return value 
+            new_sum = cell.send(meth) * cell.colspan
+
+            if new_sum >= old_sum
+              #not entirely sure why we need this line, but with it the tests pass
+              values[index] = [values[index], cell.send(meth)].compact.send(aggregate) 
+              #overwrite the old values with the new ones, but only if all entries existed
+              entries_exist = true
+              cell.colspan.times { |i| entries_exist = false if values[index+i].nil? }
+              cell.colspan.times { |i|
+                values[index+i] = cell.send(meth) if entries_exist
+              }
+            end
+          else
+            if cell.class == Prawn::Table::Cell::SpanDummy
+              values[index] = [values[index], cell.send(meth)].compact.send(aggregate) 
+            end
+          end
         end
         values.values.inject(0, &:+)
       end

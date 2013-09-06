@@ -45,6 +45,63 @@ describe "Prawn::Table" do
     end
   end
 
+  describe "You can explicitly set the column widths and use a colspan > 1" do
+    it "should work with a colspan > 1 with given column_widths (issue #407)" do
+      #normal entries in line 1
+      data = [
+        [ '','',''],
+        [ { :content => "", :colspan => 3 } ],
+        [ "", "", "" ],
+      ]
+      pdf = Prawn::Document.new
+      table = Prawn::Table.new data, pdf, :column_widths => [100 , 200, 240]
+
+      #colspan entry in line 1
+      data = [
+        [ { :content => "", :colspan => 3 } ],
+        [ "", "", "" ],
+      ]
+      pdf = Prawn::Document.new
+      table = Prawn::Table.new data, pdf, :column_widths => [100 , 200, 240]
+
+      #mixed entries in line 1
+      data = [
+        [ { :content => "", :colspan =>2 }, "" ],
+        [ "", "", "" ],
+      ]
+      pdf = Prawn::Document.new
+      table = Prawn::Table.new data, pdf, :column_widths => [100 , 200, 240]
+
+      data = [['', '', {:content => '', :colspan => 2}, '',''],
+              ['',{:content => '', :colspan => 5}]
+              ]
+      pdf = Prawn::Document.new
+      table = Prawn::Table.new data, pdf, :column_widths => [50 , 100, 50, 50, 50, 50]
+
+    end
+
+    it "illustrate issue #533" do
+      data = [['', '', '', '', '',''],
+              ['',{:content => '', :colspan => 5}]]
+      pdf = Prawn::Document.new
+      table = Prawn::Table.new data, pdf, :column_widths => [50, 200, 40, 40, 50, 50]
+    end
+
+    it "illustrates issue #502" do
+      pdf = Prawn::Document.new
+      first = {:content=>"Foooo fo foooooo",:width=>50,:align=>:center}
+      second = {:content=>"Foooo",:colspan=>2,:width=>70,:align=>:center}
+      third = {:content=>"fooooooooooo, fooooooooooooo, fooo, foooooo fooooo",:width=>55,:align=>:center}
+      fourth = {:content=>"Bar",:width=>15,:align=>:center}
+      table_content = [[
+      first,
+      [[second],[third,fourth]]
+      ]]
+      pdf.move_down(20)
+      pdf.table(table_content)
+    end
+  end
+
   describe "#initialize" do
     before(:each) do
       @pdf = Prawn::Document.new
@@ -1176,7 +1233,6 @@ describe "colspan / rowspan" do
                       :colspan => 3}],
                     ["A", "B", "C"]],
                    :width => 200)
-
     t.column_widths.inject(0) { |sum, w| sum + w }.
       should be_within(0.01).of(200)
   end
